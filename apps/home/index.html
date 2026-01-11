@@ -1,163 +1,326 @@
-<!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>xuebao.chat | 游戏大厅</title>
-  <meta name="description" content="雪豹游戏大厅：快节奏、轻量级的脑力小游戏集合。" />
-  <link rel="stylesheet" href="{{ asset_base }}/styles.css" />
-  <script src="{{ asset_base }}/app.js" defer></script>
-</head>
-<body>
-  <div class="bg-grid" aria-hidden="true"></div>
-  <header class="site-header">
-    <div class="brand">
-      <div class="logo">xb</div>
-      <div class="brand-text">
-        <div class="brand-name">xuebao.chat</div>
-        <div class="brand-tag">快节奏脑力小游戏集合</div>
-      </div>
-    </div>
-    <nav class="site-nav">
-      <a href="#games">游戏</a>
-      <a href="#new">新手推荐</a>
-      <a href="#updates">更新</a>
-    </nav>
-  </header>
-
-  <main>
-    <section class="hero">
-      <div class="hero-copy">
-        <p class="eyebrow">新的游戏入口，正在生长</p>
-        <h1>把碎片时间，变成
-          <span class="accent">专注与胜利</span>
-        </h1>
-        <p class="lead">
-          每个小游戏都短、快、好上手。主路由是大厅，点击即开局。
-        </p>
-        <div class="hero-actions">
-          {% if primary_game %}
-          <a class="btn primary" href="{{ primary_game.entry_path }}">立即开玩 {{ primary_game.title }}</a>
-          {% endif %}
-          <a class="btn ghost" href="#games">看看所有游戏</a>
-        </div>
-        <div class="hero-meta">
-          <div>
-            <div class="meta-label">今日挑战</div>
-            <div class="meta-value">60 秒速算</div>
-          </div>
-          <div>
-            <div class="meta-label">适合人群</div>
-            <div class="meta-value">学生 / 上班族 / 亲子</div>
-          </div>
-          <div>
-            <div class="meta-label">最短一局</div>
-            <div class="meta-value">30 秒起</div>
-          </div>
-        </div>
-      </div>
-      <div class="hero-card" aria-hidden="true">
-        <div class="hero-card-inner">
-          <div class="orbit">
-            <span></span><span></span><span></span><span></span>
-          </div>
-          <div class="score">24</div>
-          <div class="score-sub">算出你的节奏</div>
-        </div>
-      </div>
-    </section>
-
-    <section id="games" class="section">
-      <div class="section-head">
-        <h2>游戏大厅</h2>
-        <p>不断增加的新玩法，先从 24 点开始。</p>
-      </div>
-      <div class="card-grid">
-        {% for game in games %}
-        <article class="card reveal" style="--d: {{ loop.index0 * 80 }}ms">
-          <div class="card-top">
-            {% if game.status == "live" %}
-            <span class="pill hot">热门</span>
-            {% else %}
-            <span class="pill soon">预告</span>
-            {% endif %}
-          </div>
-          <h3>{{ game.title }}</h3>
-          <p>{{ game.description }}</p>
-          <div class="card-actions">
-            {% if game.status == "live" %}
-            <a class="btn small" href="{{ game.entry_path }}">马上开局</a>
-            {% else %}
-            <button class="btn small ghost" disabled>即将上线</button>
-            {% endif %}
-            <span class="card-meta">单人 / 1-2 分钟</span>
-          </div>
-        </article>
-        {% endfor %}
-      </div>
-    </section>
-
-    <section id="new" class="section split">
-      <div class="split-text reveal" style="--d: 0ms">
-        <h2>新手推荐：一分钟就能上手</h2>
-        <p>
-          如果你第一次来，直接玩 24 点。规则简单，但越玩越上头，
-          同时还能训练心算速度与组合能力。
-        </p>
-        <ul class="checklist">
-          <li>无需登录，点开即玩</li>
-          <li>支持手机与电脑</li>
-          <li>适合 5-10 分钟碎片时间</li>
-        </ul>
-        {% if primary_game %}
-        <a class="btn primary" href="{{ primary_game.entry_path }}">开始第一局</a>
-        {% else %}
-        <a class="btn primary" href="#games">开始第一局</a>
-        {% endif %}
-      </div>
-      <div class="split-panel reveal" style="--d: 120ms">
-        <div class="stat">
-          <div class="stat-num">+3</div>
-          <div class="stat-label">新游戏正在开发</div>
-        </div>
-        <div class="stat">
-          <div class="stat-num">0</div>
-          <div class="stat-label">零成本上手门槛</div>
-        </div>
-        <div class="stat">
-          <div class="stat-num">60s</div>
-          <div class="stat-label">建议单局时长</div>
-        </div>
-      </div>
-    </section>
-
-    <section id="updates" class="section updates">
-      <div class="section-head">
-        <h2>更新节奏</h2>
-        <p>主路由作为统一入口，后续游戏会在这里上线。</p>
-      </div>
-      <div class="timeline reveal" style="--d: 0ms">
-        <div class="time-item">
-          <div class="time-dot"></div>
-          <div>
-            <div class="time-title">已上线：24 点</div>
-            <div class="time-desc">首个小游戏，支持移动端快速体验。</div>
-          </div>
-        </div>
-        <div class="time-item">
-          <div class="time-dot"></div>
-          <div>
-            <div class="time-title">规划中：逻辑迷宫</div>
-            <div class="time-desc">偏社交的短回合解谜游戏。</div>
-          </div>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <footer class="site-footer">
-    <div>? 2026 xuebao.chat</div>
-    <div>建议：横屏体验更沉浸</div>
-  </footer>
-</body>
-</html>
+<!doctype html>
+
+<html lang="zh-CN">
+
+<head>
+
+  <meta charset="utf-8" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title>xuebao.chat | 游戏大厅</title>
+
+  <meta name="description" content="雪豹游戏大厅：快节奏、轻量级的脑力小游戏集合。" />
+
+  <link rel="stylesheet" href="{{ asset_base }}/styles.css" />
+
+  <script src="{{ asset_base }}/app.js" defer></script>
+
+</head>
+
+<body>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <audio class="bg-audio" controls loop preload="none">
+    <source src="/music/bg.mp3" type="audio/mpeg" />
+  </audio>
+  <header class="site-header">
+    <div class="brand">
+
+      <div class="logo">xb</div>
+
+      <div class="brand-text">
+
+        <div class="brand-name">xuebao.chat</div>
+
+        <div class="brand-tag">快节奏脑力小游戏集合</div>
+
+      </div>
+
+    </div>
+
+    <nav class="site-nav">
+
+      <a href="#games">游戏</a>
+
+      <a href="#new">新手推荐</a>
+
+      <a href="#updates">更新</a>
+
+    </nav>
+
+  </header>
+
+
+
+  <main>
+
+    <section class="hero">
+
+      <div class="hero-copy">
+
+        <p class="eyebrow">新的游戏入口，正在生长</p>
+
+        <h1>把碎片时间，变成
+
+          <span class="accent">专注与胜利</span>
+
+        </h1>
+
+        <p class="lead">
+
+          每个小游戏都短、快、好上手。主路由是大厅，点击即开局。
+
+        </p>
+
+        <div class="hero-actions">
+
+          {% if primary_game %}
+
+          <a class="btn primary" href="{{ primary_game.entry_path }}">立即开玩 {{ primary_game.title }}</a>
+
+          {% endif %}
+
+          <a class="btn ghost" href="#games">看看所有游戏</a>
+
+        </div>
+
+        <div class="hero-meta">
+
+          <div>
+
+            <div class="meta-label">今日挑战</div>
+
+            <div class="meta-value">60 秒速算</div>
+
+          </div>
+
+          <div>
+
+            <div class="meta-label">适合人群</div>
+
+            <div class="meta-value">学生 / 上班族 / 亲子</div>
+
+          </div>
+
+          <div>
+
+            <div class="meta-label">最短一局</div>
+
+            <div class="meta-value">30 秒起</div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <div class="hero-card" aria-hidden="true">
+
+        <div class="hero-card-inner">
+
+          <div class="orbit">
+
+            <span></span><span></span><span></span><span></span>
+
+          </div>
+
+          <div class="score">24</div>
+
+          <div class="score-sub">算出你的节奏</div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+
+    <section id="games" class="section">
+
+      <div class="section-head">
+
+        <h2>游戏大厅</h2>
+
+        <p>不断增加的新玩法，先从 24 点开始。</p>
+
+      </div>
+
+      <div class="card-grid">
+
+        {% for game in games %}
+
+        <article class="card reveal" style="--d: {{ loop.index0 * 80 }}ms">
+
+          <div class="card-top">
+
+            {% if game.status == "live" %}
+
+            <span class="pill hot">热门</span>
+
+            {% else %}
+
+            <span class="pill soon">预告</span>
+
+            {% endif %}
+
+          </div>
+
+          <h3>{{ game.title }}</h3>
+
+          <p>{{ game.description }}</p>
+
+          <div class="card-actions">
+
+            {% if game.status == "live" %}
+
+            <a class="btn small" href="{{ game.entry_path }}">马上开局</a>
+
+            {% else %}
+
+            <button class="btn small ghost" disabled>即将上线</button>
+
+            {% endif %}
+
+            <span class="card-meta">单人 / 1-2 分钟</span>
+
+          </div>
+
+        </article>
+
+        {% endfor %}
+
+      </div>
+
+    </section>
+
+
+
+    <section id="new" class="section split">
+
+      <div class="split-text reveal" style="--d: 0ms">
+
+        <h2>新手推荐：一分钟就能上手</h2>
+
+        <p>
+
+          如果你第一次来，直接玩 24 点。规则简单，但越玩越上头，
+
+          同时还能训练心算速度与组合能力。
+
+        </p>
+
+        <ul class="checklist">
+
+          <li>无需登录，点开即玩</li>
+
+          <li>支持手机与电脑</li>
+
+          <li>适合 5-10 分钟碎片时间</li>
+
+        </ul>
+
+        {% if primary_game %}
+
+        <a class="btn primary" href="{{ primary_game.entry_path }}">开始第一局</a>
+
+        {% else %}
+
+        <a class="btn primary" href="#games">开始第一局</a>
+
+        {% endif %}
+
+      </div>
+
+      <div class="split-panel reveal" style="--d: 120ms">
+
+        <div class="stat">
+
+          <div class="stat-num">+3</div>
+
+          <div class="stat-label">新游戏正在开发</div>
+
+        </div>
+
+        <div class="stat">
+
+          <div class="stat-num">0</div>
+
+          <div class="stat-label">零成本上手门槛</div>
+
+        </div>
+
+        <div class="stat">
+
+          <div class="stat-num">60s</div>
+
+          <div class="stat-label">建议单局时长</div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+
+    <section id="updates" class="section updates">
+
+      <div class="section-head">
+
+        <h2>更新节奏</h2>
+
+        <p>主路由作为统一入口，后续游戏会在这里上线。</p>
+
+      </div>
+
+      <div class="timeline reveal" style="--d: 0ms">
+
+        <div class="time-item">
+
+          <div class="time-dot"></div>
+
+          <div>
+
+            <div class="time-title">已上线：24 点</div>
+
+            <div class="time-desc">首个小游戏，支持移动端快速体验。</div>
+
+          </div>
+
+        </div>
+
+        <div class="time-item">
+
+          <div class="time-dot"></div>
+
+          <div>
+
+            <div class="time-title">规划中：逻辑迷宫</div>
+
+            <div class="time-desc">偏社交的短回合解谜游戏。</div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+
+
+  <footer class="site-footer">
+
+    <div>? 2026 xuebao.chat</div>
+
+    <div>建议：横屏体验更沉浸</div>
+
+  </footer>
+
+</body>
+
+</html>
+
