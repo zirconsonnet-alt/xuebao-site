@@ -25,7 +25,7 @@ GAME_REGISTRY: List[GameSpec] = [
         entry_path="/24game/",
         status="live",
         module_path=APPS_DIR / "24game" / "main.py",
-        app_dir=APPS_DIR / "24game" / "apps" / "24game",
+        app_dir=APPS_DIR / "24game" / "web",
     ),
     GameSpec(
         slug="logic-bingo",
@@ -34,6 +34,6 @@ GAME_REGISTRY: List[GameSpec] = [
         entry_path="/logic-bingo/",
         status="live",
         module_path=APPS_DIR / "logic-bingo" / "main.py",
-        app_dir=APPS_DIR / "logic-bingo" / "apps" / "logic-bingo",
+        app_dir=APPS_DIR / "logic-bingo" / "web",
     ),
 ]

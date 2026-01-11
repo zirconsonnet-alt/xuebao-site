@@ -17,15 +17,19 @@ if str(BASE_DIR) not in sys.path:
 
 from logic import BingoGenerator
 
-APP_DIR = BASE_DIR / "apps" / APP_SLUG
+WEB_DIR = BASE_DIR / "web"
 
-templates = Jinja2Templates(directory=str(APP_DIR))
+templates = Jinja2Templates(directory=str(WEB_DIR / "templates"))
 
 router = APIRouter(prefix=BASE_PATH)
 
 
 def register(parent_app: FastAPI) -> None:
-    parent_app.mount(f"{BASE_PATH}/assets", StaticFiles(directory=str(APP_DIR)), name="logic-bingo-assets")
+    parent_app.mount(
+        f"{BASE_PATH}/assets",
+        StaticFiles(directory=str(WEB_DIR / "static")),
+        name="logic-bingo-assets",
+    )
     parent_app.include_router(router)
 
 
