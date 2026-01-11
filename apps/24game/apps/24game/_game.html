@@ -1,0 +1,67 @@
+<section id="game" class="game">
+  <form
+    id="game-form"
+    class="board"
+    hx-post="{{ base_path }}/check"
+    hx-target="#status"
+    hx-swap="outerHTML"
+  >
+    {% include "_cards.html" %}
+
+    <div class="panel">
+      <div class="expression">
+        <label for="expression">表达式</label>
+        <input
+          id="expression"
+          name="expression"
+          type="text"
+          placeholder="(8-5) * (9-3)"
+          autocomplete="off"
+          value="{{ expression | default('') }}"
+        />
+        {% include "_status.html" %}
+      </div>
+
+      <div class="pad" aria-label="输入面板">
+        <button type="button" data-insert="+">+</button>
+        <button type="button" data-insert="-">-</button>
+        <button type="button" data-insert="*">*</button>
+        <button type="button" data-insert="/">/</button>
+        <button type="button" data-insert="(">(</button>
+        <button type="button" data-insert=")">)</button>
+      </div>
+
+      <div class="actions">
+        <button class="primary" type="submit">校验 24</button>
+        <button
+          type="button"
+          hx-post="{{ base_path }}/new"
+          hx-target="#game"
+          hx-swap="outerHTML"
+        >
+          新一组
+        </button>
+        <button
+          type="button"
+          hx-post="{{ base_path }}/shuffle"
+          hx-include="#game-form"
+          hx-target="#game"
+          hx-swap="outerHTML"
+        >
+          洗牌
+        </button>
+        <button
+          type="button"
+          hx-post="{{ base_path }}/answer"
+          hx-include="#game-form"
+          hx-target="#status"
+          hx-swap="outerHTML"
+        >
+          查看答案
+        </button>
+        <button type="button" id="clear">清空</button>
+        <button type="button" id="undo">退格</button>
+      </div>
+    </div>
+  </form>
+</section>

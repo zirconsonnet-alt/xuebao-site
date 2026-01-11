@@ -1,0 +1,10 @@
+<div class="cards-block" id="cards-block">
+  <div class="cards" id="cards" aria-label="Numbers">
+    {% for value in numbers %}
+      <button type="button" class="card" data-value="{{ value }}">{{ value }}</button>
+    {% endfor %}
+  </div>
+
+  <input type="hidden" name="numbers_json" value='{{ numbers | tojson }}' />
+  <input type="hidden" name="solution_text" value="{{ solution }}" />
+</div>

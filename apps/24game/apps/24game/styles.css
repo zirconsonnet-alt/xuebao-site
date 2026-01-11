@@ -1,0 +1,283 @@
+:root {
+  color-scheme: light;
+  --ink: #14131a;
+  --mist: #f4f0eb;
+  --sand: #f0d9c5;
+  --sun: #ffb347;
+  --ember: #ff6f3c;
+  --teal: #2f8f83;
+  --plum: #412a3d;
+  --card: #fffaf3;
+  --shadow: 0 28px 60px rgba(20, 19, 26, 0.2);
+  --radius: 18px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: "Palatino Linotype", "Book Antiqua", Palatino, serif;
+  color: var(--ink);
+  background: radial-gradient(circle at top, #fff4e1 0%, #f6e5d6 45%, #ecd3c1 100%);
+  min-height: 100vh;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.atmosphere {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(255, 179, 71, 0.35), transparent 50%),
+    radial-gradient(circle at 80% 10%, rgba(47, 143, 131, 0.25), transparent 55%),
+    radial-gradient(circle at 70% 80%, rgba(255, 111, 60, 0.28), transparent 50%),
+    repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.15) 0 2px, transparent 2px 10px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.shell {
+  position: relative;
+  z-index: 1;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 48px 24px 64px;
+  display: flex;
+  flex-direction: column;
+  gap: 36px;
+}
+
+.hero {
+  text-align: center;
+  padding: 32px 20px;
+  background: linear-gradient(120deg, rgba(255, 255, 255, 0.9), rgba(255, 255, 255, 0.6));
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  animation: rise 0.8s ease-out;
+}
+
+.eyebrow {
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  color: var(--plum);
+  margin: 0 0 12px;
+}
+
+.hero h1 {
+  font-family: "Didot", "Bodoni MT", "Times New Roman", serif;
+  font-size: clamp(2.5rem, 6vw, 4.2rem);
+  margin: 0;
+  color: var(--plum);
+}
+
+.subtitle {
+  margin: 12px 0 0;
+  font-size: 1.05rem;
+}
+
+.board {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 24px;
+  margin: 0;
+}
+
+.cards-block {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 28px 12px;
+  text-align: center;
+  font-size: 2.4rem;
+  font-weight: 700;
+  color: var(--plum);
+  border: 2px solid rgba(65, 42, 61, 0.15);
+  box-shadow: 0 20px 30px rgba(65, 42, 61, 0.15);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  animation: floatIn 0.6s ease both;
+}
+
+.card:hover {
+  transform: translateY(-6px) rotate(-1deg);
+  box-shadow: 0 28px 40px rgba(65, 42, 61, 0.2);
+}
+
+.panel {
+  background: rgba(255, 255, 255, 0.85);
+  border-radius: var(--radius);
+  padding: 24px;
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.expression label {
+  display: block;
+  font-size: 0.9rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  color: var(--plum);
+}
+
+.expression input {
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 2px solid rgba(65, 42, 61, 0.25);
+  font-size: 1.1rem;
+  background: #fff;
+  outline: none;
+}
+
+.expression input:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 3px rgba(47, 143, 131, 0.2);
+}
+
+.result {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(47, 143, 131, 0.12);
+  font-weight: 600;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+}
+
+.result.fail {
+  background: rgba(255, 111, 60, 0.12);
+  color: #8b2a19;
+}
+
+.result.win {
+  background: rgba(255, 179, 71, 0.18);
+  color: #6a3c00;
+  animation: glow 0.6s ease;
+}
+
+.result.warn {
+  background: rgba(255, 179, 71, 0.12);
+  color: #6a3c00;
+}
+
+.pad {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.pad button,
+.actions button {
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(65, 42, 61, 0.18);
+  background: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease, color 0.2s ease;
+}
+
+.pad button:hover,
+.actions button:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 179, 71, 0.15);
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+.actions .primary {
+  background: linear-gradient(135deg, var(--ember), var(--sun));
+  color: #fff;
+  border: none;
+}
+
+.tips {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.tips h2 {
+  margin-bottom: 6px;
+  color: var(--plum);
+  font-size: 1.1rem;
+}
+
+.tips p {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes floatIn {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes glow {
+  0% {
+    box-shadow: 0 0 0 rgba(255, 179, 71, 0.2);
+  }
+  100% {
+    box-shadow: 0 0 18px rgba(255, 179, 71, 0.5);
+  }
+}
+
+@media (max-width: 900px) {
+  .board {
+    grid-template-columns: 1fr;
+  }
+
+  .hero {
+    text-align: left;
+  }
+}
+
+@media (max-width: 600px) {
+  .shell {
+    padding: 32px 16px 48px;
+  }
+
+  .card {
+    font-size: 2rem;
+  }
+}

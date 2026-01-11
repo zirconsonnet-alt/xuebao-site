@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>24 点</title>
+    <link rel="stylesheet" href="{{ base_path }}/assets/styles.css" />
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="{{ base_path }}/assets/app.js" defer></script>
+  </head>
+  <body>
+    <div class="atmosphere"></div>
+    <main class="shell">
+      <header class="hero">
+        <p class="eyebrow">四个数字 · 一个目标</p>
+        <h1>24 点</h1>
+        <p class="subtitle">每张牌只用一次，用 + - * / 和括号得到 24。</p>
+      </header>
+
+      {% include "_game.html" %}
+
+      <section class="tips">
+        <div>
+          <h2>规则</h2>
+          <p>每个数字只用一次，可使用括号，小数结果允许。</p>
+        </div>
+        <div>
+          <h2>快捷操作</h2>
+          <p>点击数字或运算符可插入，按回车校验。</p>
+        </div>
+        <div>
+          <h2>练习提示</h2>
+          <p>点击新一组发牌，洗牌只改变顺序。</p>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>

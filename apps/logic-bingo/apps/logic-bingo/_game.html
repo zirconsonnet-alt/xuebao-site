@@ -1,0 +1,40 @@
+<section id="game" class="game">
+  <form
+    id="board-form"
+    class="board-form"
+    hx-post="{{ base_path }}/submit"
+    hx-target="#status"
+    hx-swap="outerHTML"
+  >
+    {% include "_board.html" %}
+
+    <div class="controls">
+      <button class="btn primary" type="submit">提交</button>
+      <button
+        class="btn ghost"
+        type="button"
+        hx-post="{{ base_path }}/answer"
+        hx-include="#board-form"
+        hx-target="#board"
+        hx-swap="outerHTML"
+      >
+        显示答案
+      </button>
+      <button
+        class="btn ghost"
+        type="button"
+        hx-post="{{ base_path }}/new"
+        hx-target="#game"
+        hx-swap="outerHTML"
+      >
+        下一局
+      </button>
+    </div>
+  </form>
+
+  {% if message is not defined %}
+    {% set message = "准备就绪。" %}
+    {% set status_class = "status status--idle" %}
+  {% endif %}
+  {% include "_status.html" %}
+</section>

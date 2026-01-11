@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>逻辑 Bingo</title>
+    <meta name="description" content="逻辑 Bingo：用文字线索推理出正确的打勾矩阵。" />
+    <link rel="stylesheet" href="{{ base_path }}/assets/styles.css" />
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <script src="{{ base_path }}/assets/app.js" defer></script>
+  </head>
+  <body>
+    <div class="backdrop" aria-hidden="true"></div>
+    <main class="shell">
+      <header class="hero">
+        <p class="eyebrow">逻辑推理 · 5x5</p>
+        <h1>逻辑 Bingo</h1>
+        <p class="subtitle">根据每个格子的中文线索，推断它是否被打勾。</p>
+        <div class="legend">
+          <span class="pill is-unknown">未知</span>
+          <span class="pill is-true">打勾</span>
+          <span class="pill is-false">不打勾</span>
+        </div>
+      </header>
+
+      {% include "_game.html" %}
+
+      <section class="tips">
+        <div>
+          <h2>玩法提示</h2>
+          <p>点击格子循环切换状态：未知 → 打勾 → 不打勾。</p>
+        </div>
+        <div>
+          <h2>胜利条件</h2>
+          <p>矩阵推理正确，并连成一条打勾直线（行 / 列 / 对角线）。</p>
+        </div>
+        <div>
+          <h2>操作说明</h2>
+          <p>提交检查逻辑；显示答案可直接揭晓；下一局刷新题面。</p>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
