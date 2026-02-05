@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>音乐实验室</title>
+  <style>
+    :root{
+      --bg:#0b1020; --panel:#121a33; --muted:#94a3b8; --ink:#e2e8f0; --edge: rgba(148,163,184,.25);
+      --accent:#7dd3fc; --accent2:#fca5a5;
+    }
+    html,body{margin:0;height:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;}
+    body{background:linear-gradient(180deg,var(--bg),#060815);color:var(--ink);}
+    .wrap{max-width:1100px;margin:0 auto;padding:32px 18px 70px;}
+    .top{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;}
+    h1{margin:0;font-size:22px;letter-spacing:.02em;}
+    .sub{margin:8px 0 0;color:var(--muted);font-size:13px;line-height:1.5;max-width:720px;}
+    .nav{display:flex;gap:10px;align-items:center;}
+    a.btn{display:inline-flex;align-items:center;justify-content:center;padding:10px 14px;border-radius:12px;border:1px solid var(--edge);
+      text-decoration:none;color:var(--ink);background:rgba(18,26,51,.55);font-weight:600;}
+    a.btn:hover{border-color:rgba(125,211,252,.35);box-shadow:0 0 0 2px rgba(125,211,252,.10) inset;}
+    .grid{margin-top:18px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;}
+    .card{border:1px solid var(--edge);border-radius:16px;background:rgba(18,26,51,.55);padding:16px;display:flex;flex-direction:column;gap:10px;}
+    .tag{display:inline-flex;gap:8px;align-items:center;color:var(--muted);font-size:12px;}
+    .tag span{display:inline-flex;align-items:center;padding:3px 10px;border-radius:999px;border:1px solid var(--edge);}
+    .card h2{margin:0;font-size:16px;}
+    .card p{margin:0;color:var(--muted);font-size:13px;line-height:1.5;}
+    .actions{margin-top:auto;display:flex;gap:10px;flex-wrap:wrap;}
+    a.primary{border-color:rgba(125,211,252,.35);background:rgba(125,211,252,.10);}
+    a.secondary{border-color:rgba(252,165,165,.35);background:rgba(252,165,165,.10);}
+    .foot{margin-top:18px;color:var(--muted);font-size:12px;}
+    code{font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;}
+    @media (max-width:860px){ .grid{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>音乐实验室</h1>
+        <div class="sub">这里是 <code>/music</code> 的首页：钢琴卷帘用于编辑与导入 MIDI；理论分析用于调式/和弦/功能的解释面板与 API 调试。</div>
+      </div>
+      <div class="nav">
+        <a class="btn" href="/">返回大厅</a>
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <div class="tag"><span>编辑</span><span>Signal</span></div>
+        <h2>钢琴卷帘</h2>
+        <p>进入钢琴卷帘编辑器，支持生成并导入 MIDI。</p>
+        <div class="actions">
+          <a class="btn primary" href="__BASE_PATH__/piano">打开钢琴卷帘</a>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="tag"><span>分析</span><span>API</span></div>
+        <h2>音乐理论分析</h2>
+        <p>输入 Key/Mode/Chord，查看 grouped 输出与文字解释，用于调试分析器与规则语义。</p>
+        <div class="actions">
+          <a class="btn secondary" href="__BASE_PATH__/theory">打开理论分析</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="foot">提示：如果 <code>/music/signal</code> 未编译，钢琴卷帘页面会显示空白或 404，但理论分析不受影响。</div>
+  </div>
+</body>
+</html>
+

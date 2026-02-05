@@ -1,0 +1,96 @@
+﻿<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Music</title>
+  <style>
+    html, body { margin:0; padding:0; height:100%; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+    .layout { display:grid; grid-template-columns:280px 1fr; height:100vh; width:100vw; }
+    .sidebar { border-right:1px solid #ddd; padding:12px; display:flex; flex-direction:column; gap:10px; background:#fafafa; }
+    .btn { padding:10px 12px; border:1px solid #ccc; border-radius:8px; background:#fff; cursor:pointer; font-size:14px; }
+    .btn:disabled { opacity:.6; cursor:not-allowed; }
+    .log { flex:1; border:1px solid #eee; border-radius:8px; padding:10px; background:#fff; overflow:auto;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+      font-size:12px; line-height:1.4; white-space:pre-wrap; }
+    iframe { width:100%; height:100%; border:0; display:block; }
+  </style>
+</head>
+
+<body>
+<div class="layout">
+  <div class="sidebar">
+    <button class="btn" onclick="location.href='__BASE_PATH__/'">音乐首页</button>
+    <button class="btn" onclick="location.href='__BASE_PATH__/theory'">理论分析</button>
+    <button id="btnGen" class="btn">生成并导入 MIDI</button>
+    <button id="btnPing" class="btn">Ping Signal</button>
+    <div id="log" class="log"></div>
+  </div>
+
+  <iframe id="signalFrame" src="__BASE_PATH__/signal/edit.html"></iframe>
+</div>
+
+<script>
+(function(){
+  const logEl = document.getElementById("log");
+  const btnGen = document.getElementById("btnGen");
+  const btnPing = document.getElementById("btnPing");
+  const iframe = document.getElementById("signalFrame");
+
+  function log() {
+    const msg = Array.from(arguments).map(a => (typeof a === "string" ? a : JSON.stringify(a))).join(" ");
+    logEl.textContent += msg + "\n";
+    logEl.scrollTop = logEl.scrollHeight;
+  }
+
+  function postToSignal(payload) {
+    iframe.contentWindow.postMessage(payload, "*");
+  }
+
+  window.addEventListener("message", (ev) => {
+    const data = ev.data;
+    if (!data || typeof data !== "object") return;
+
+    if (data.type === "SIGNAL_READY") log("[Signal] READY");
+    if (data.type === "SIGNAL_IMPORT_OK") log("[Signal] 导入成功");
+    if (data.type === "SIGNAL_IMPORT_FAIL") log("[Signal] 导入失败:", data.reason || "unknown");
+    if (data.type === "SIGNAL_PONG") log("[Signal] PONG");
+  });
+
+  btnPing.addEventListener("click", () => {
+    log("-> ping signal");
+    postToSignal({ type: "HOST_PING" });
+  });
+
+  btnGen.addEventListener("click", async () => {
+    btnGen.disabled = true;
+    try {
+      log("-> fetch midi ...");
+      const res = await fetch("__BASE_PATH__/api/composer/midi", { cache: "no-store" });
+      if (!res.ok) {
+        const text = await res.text();
+        log("!! backend error:", res.status, text);
+        return;
+      }
+      const buf = await res.arrayBuffer();
+      log("-> got midi bytes:", buf.byteLength);
+
+      postToSignal({
+        type: "HOST_IMPORT_MIDI",
+        filename: "composer.mid",
+        mime: "audio/midi",
+        bytes: buf
+      });
+      log("-> postMessage sent");
+    } catch (e) {
+      log("!! exception:", String(e));
+    } finally {
+      btnGen.disabled = false;
+    }
+  });
+
+  log("Host ready.");
+})();
+</script>
+</body>
+</html>

@@ -21,7 +21,7 @@ templates = Jinja2Templates(directory=str(HOME_DIR))
 app = FastAPI()
 
 app.mount("/assets/home", StaticFiles(directory=str(HOME_DIR)), name="home-assets")
-app.mount("/music", StaticFiles(directory=str(BASE_DIR / "music")), name="music")
+app.mount("/assets/music", StaticFiles(directory=str(BASE_DIR / "music")), name="music")
 
 
 def load_game_module(spec: GameSpec):

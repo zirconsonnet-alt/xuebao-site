@@ -1,0 +1,300 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Music Theory Lab</title>
+  <style>
+    :root { --bg:#0b1020; --panel:#121a33; --muted:#94a3b8; --ink:#e2e8f0; --edge: rgba(148,163,184,.25); --accent:#7dd3fc; }
+    html,body{margin:0;height:100%;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;}
+    body{background:linear-gradient(180deg,var(--bg),#060815);color:var(--ink);}
+    .layout{display:grid;grid-template-columns:360px 1fr;height:100vh;}
+    .side{border-right:1px solid var(--edge);padding:14px 14px 18px;display:flex;flex-direction:column;gap:12px;background:rgba(18,26,51,.65);}
+    .main{padding:14px 16px 18px;overflow:auto;}
+    h1{font-size:16px;margin:0 0 6px;}
+    .hint{color:var(--muted);font-size:12px;line-height:1.4;}
+    .card{border:1px solid var(--edge);border-radius:12px;padding:12px;background:rgba(18,26,51,.55);}
+    .row{display:grid;grid-template-columns:120px 1fr;gap:10px;align-items:center;margin-bottom:8px;}
+    label{color:var(--muted);font-size:12px;}
+    select,input{width:100%;padding:8px 10px;border-radius:10px;border:1px solid var(--edge);background:rgba(11,16,32,.8);color:var(--ink);outline:none;}
+    input::placeholder{color:rgba(148,163,184,.6);}
+    .btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
+    .btns.four{grid-template-columns:1fr 1fr;grid-auto-rows:auto;}
+    @media (min-width: 980px){ .btns.four{grid-template-columns:1fr 1fr 1fr 1fr;} }
+    button{padding:10px 12px;border-radius:10px;border:1px solid var(--edge);background:rgba(11,16,32,.75);color:var(--ink);cursor:pointer;font-weight:600;}
+    button.primary{border-color:rgba(125,211,252,.35);box-shadow:0 0 0 2px rgba(125,211,252,.12) inset;}
+    button:disabled{opacity:.6;cursor:not-allowed;}
+    pre{margin:0;white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,"Liberation Mono",monospace;font-size:12px;line-height:1.4;}
+    .split{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+    @media (max-width: 980px){ .layout{grid-template-columns:1fr;} .side{border-right:none;border-bottom:1px solid var(--edge);} .split{grid-template-columns:1fr;} }
+  </style>
+</head>
+<body>
+<div class="layout">
+  <aside class="side">
+    <div>
+      <h1>音乐理论分析</h1>
+      <div class="hint">输入 Key/Mode/Chord，调用后端分析器，返回 grouped（按 meta/entity/evidence/analysis 分组的值）与文字化解释。</div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <label>Key tonic</label>
+        <select id="keyTonic"></select>
+      </div>
+      <div class="row">
+        <label>Key main mode</label>
+        <select id="keyMainMode"></select>
+      </div>
+      <div class="row">
+        <label>Mode access</label>
+        <select id="modeAccess"></select>
+      </div>
+      <div class="row">
+        <label>Mode role</label>
+        <input id="modeRole" placeholder="I / II / ... 或 Ionian / Dorian / ..." value="I"/>
+      </div>
+      <div class="row">
+        <label>Chord degree</label>
+        <input id="chordDegree" placeholder="I..VII" value="II"/>
+      </div>
+      <div class="row">
+        <label>Chord variant</label>
+        <select id="chordVariant"></select>
+      </div>
+      <div class="row">
+        <label>Composition</label>
+        <input id="composition" placeholder="I,III,V" value="I,III,V"/>
+      </div>
+
+      <div class="btns four">
+        <button id="btnChord" class="primary">Chord ∈ Mode</button>
+        <button id="btnChordKey">Chord ∈ Key</button>
+        <button id="btnChordSelf">Chord 自身</button>
+        <button id="btnMode">Mode ∈ Key</button>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="split">
+      <div class="card">
+        <div class="hint">grouped（按 meta/entity/evidence/analysis 分组的值）</div>
+        <pre id="groupedOut">等待请求…</pre>
+      </div>
+      <div class="card">
+        <div class="hint">解释（面向用户的文字版）</div>
+        <pre id="friendlyOut">等待请求…</pre>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+(function(){
+  const BASE = "__BASE_PATH__";
+  const $ = (id) => document.getElementById(id);
+  const groupedOut = $("groupedOut");
+  const friendlyOut = $("friendlyOut");
+  const btnChord = $("btnChord");
+  const btnChordKey = $("btnChordKey");
+  const btnChordSelf = $("btnChordSelf");
+  const btnMode = $("btnMode");
+
+  const TONICS = ["C","D","E","F","G","A","B"];
+  const MODES = ["Ionian","Dorian","Phrygian","Lydian","Mixolydian","Aeolian","Locrian"];
+  const ACCESS = ["Relative","Substitute","SubV"];
+  const VARIANTS = ["Base","Ascending","Descending"];
+
+  function fillSelect(el, items) {
+    el.innerHTML = "";
+    for (const it of items) {
+      const opt = document.createElement("option");
+      opt.value = it;
+      opt.textContent = it;
+      el.appendChild(opt);
+    }
+  }
+
+  fillSelect($("keyTonic"), TONICS);
+  fillSelect($("keyMainMode"), MODES);
+  fillSelect($("modeAccess"), ACCESS);
+  fillSelect($("chordVariant"), VARIANTS);
+
+  $("keyTonic").value = "C";
+  $("keyMainMode").value = "Ionian";
+  $("modeAccess").value = "Relative";
+  $("chordVariant").value = "Base";
+
+  function parseComposition(text) {
+    const parts = String(text || "").split(",").map(s => s.trim()).filter(Boolean);
+    return parts.length ? parts : null;
+  }
+
+  async function postJSON(url, body) {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const text = await res.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch (_) {
+      data = { ok: false, error: text || "(non-json empty response)" };
+    }
+    return { ok: res.ok, status: res.status, data, raw: text };
+  }
+
+  function setBusy(b) {
+    btnChord.disabled = b;
+    btnMode.disabled = b;
+  }
+
+  function isEmptyObject(obj) {
+    return obj && typeof obj === "object" && !Array.isArray(obj) && Object.keys(obj).length === 0;
+  }
+
+  function formatValue(v) {
+    if (v === null || v === undefined) return "None";
+    if (typeof v === "string") return v;
+    if (typeof v === "number" || typeof v === "boolean") return String(v);
+    if (Array.isArray(v)) {
+      if (!v.length) return "None";
+      return v.map(formatValue).join(", ");
+    }
+    if (typeof v === "object") return JSON.stringify(v);
+    return String(v);
+  }
+
+  function renderFriendly(grouped, kind, payload) {
+    if (!grouped || typeof grouped !== "object") return "无结果。";
+    const lines = [];
+
+    const meta = grouped.meta && typeof grouped.meta === "object" ? grouped.meta : {};
+    const entity = grouped.entity && typeof grouped.entity === "object" ? grouped.entity : {};
+    const evidence = grouped.evidence && typeof grouped.evidence === "object" ? grouped.evidence : {};
+    const analysis = grouped.analysis && typeof grouped.analysis === "object" ? grouped.analysis : {};
+
+    // META: keep kind visible.
+    if (meta.kind !== undefined) {
+      lines.push("[META]");
+      lines.push(`- kind: ${formatValue(meta.kind)}`);
+      lines.push("");
+    }
+
+    // Entities (not evidence): show resolved objects for context.
+    const entityLines = [];
+    if (kind === "chord") {
+      if (entity.mode !== undefined) entityLines.push(`- mode: ${formatValue(entity.mode)}`);
+      if (entity.chord !== undefined) entityLines.push(`- chord: ${formatValue(entity.chord)}`);
+    } else if (kind === "chord_key") {
+      if (entity.key !== undefined) entityLines.push(`- key: ${formatValue(entity.key)}`);
+      if (entity.mode !== undefined) entityLines.push(`- mode: ${formatValue(entity.mode)}`);
+      if (entity.chord !== undefined) entityLines.push(`- chord: ${formatValue(entity.chord)}`);
+    } else if (kind === "chord_self") {
+      if (entity.chord !== undefined) entityLines.push(`- chord: ${formatValue(entity.chord)}`);
+    } else if (kind === "mode") {
+      if (entity.key !== undefined) entityLines.push(`- key: ${formatValue(entity.key)}`);
+      if (entity.mode !== undefined) entityLines.push(`- mode: ${formatValue(entity.mode)}`);
+    }
+    if (entityLines.length) {
+      lines.push("[对象]");
+      lines.push(...entityLines);
+      lines.push("");
+    }
+
+    // EVIDENCE: hide chord-id inputs; keep only non-entity evidence.
+    const hideEvidenceKeys = new Set(["chord_id", "variant", "degree", "composition", "mode", "chord", "key", "access", "role"]);
+    const evKeys = Object.keys(evidence).filter((k) => !hideEvidenceKeys.has(k));
+    const evLines = [];
+    for (const k of evKeys) {
+      const v = evidence[k];
+      if (v === null || v === undefined) continue;
+      if (Array.isArray(v) && v.length === 0) {
+        if (k === "turning_points" || k === "altered_degrees") {
+          evLines.push(`- ${k}: None`);
+        }
+        continue;
+      }
+      if (isEmptyObject(v)) continue;
+      const rendered = formatValue(v);
+      if (rendered === "None") continue;
+      evLines.push(`- ${k}: ${rendered}`);
+    }
+    if (evLines.length) {
+      lines.push("[EVIDENCE]");
+      lines.push(...evLines);
+      lines.push("");
+    }
+
+    // ANALYSIS: show all computed fields.
+    const anKeys = Object.keys(analysis);
+    const anLines = [];
+    for (const k of anKeys) {
+      const v = analysis[k];
+      if (v === null || v === undefined) continue;
+      if (Array.isArray(v) && v.length === 0) continue;
+      if (isEmptyObject(v)) continue;
+      const rendered = formatValue(v);
+      if (rendered === "None") continue;
+      anLines.push(`- ${k}: ${rendered}`);
+    }
+    if (anLines.length) {
+      lines.push("[ANALYSIS]");
+      lines.push(...anLines);
+      lines.push("");
+    }
+    return lines.join("\n").trim() || "无字段。";
+  }
+
+  async function run(kind) {
+    setBusy(true);
+    groupedOut.textContent = "请求中…";
+    friendlyOut.textContent = "请求中…";
+    try {
+      const payload = {
+        key: { tonic: $("keyTonic").value, main_mode_type: $("keyMainMode").value },
+        mode: { access: $("modeAccess").value, role: $("modeRole").value.trim() },
+      };
+      if (kind === "chord" || kind === "chord_key" || kind === "chord_self") {
+        payload.chord = {
+          degree: $("chordDegree").value.trim(),
+          variant: $("chordVariant").value,
+          composition: parseComposition($("composition").value),
+        };
+      }
+
+      const url = kind === "chord"
+        ? `${BASE}/api/theory/chord_in_mode`
+        : (kind === "chord_key"
+          ? `${BASE}/api/theory/chord_in_key`
+          : (kind === "chord_self"
+            ? `${BASE}/api/theory/chord`
+            : `${BASE}/api/theory/mode_in_key`));
+
+      const { data } = await postJSON(url, payload);
+      if (!data || !data.ok) {
+        groupedOut.textContent = JSON.stringify(data, null, 2);
+        friendlyOut.textContent = "请求失败，请查看 grouped 中的 error。";
+        return;
+      }
+      groupedOut.textContent = JSON.stringify(data.grouped, null, 2);
+      friendlyOut.textContent = renderFriendly(data.grouped, kind, payload);
+    } catch (e) {
+      groupedOut.textContent = String(e);
+      friendlyOut.textContent = "发生异常，请查看 grouped。";
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  btnChord.addEventListener("click", () => run("chord"));
+  btnChordKey.addEventListener("click", () => run("chord_key"));
+  btnChordSelf.addEventListener("click", () => run("chord_self"));
+  btnMode.addEventListener("click", () => run("mode"));
+})();
+</script>
+</body>
+</html>
