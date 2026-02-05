@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>雪豹杀 · 网页版</title>
+  <link rel="stylesheet" href="{{ asset_path }}/assets/styles.css" />
+</head>
+<body>
+  <div class="page"
+       data-room-path="{{ room_path }}"
+       data-asset-path="{{ asset_path }}"
+       data-auth-path="{{ auth_path }}"
+       data-room-id="{{ room_id }}"
+       data-logged-in="{{ 'true' if user else 'false' }}">
+    <header class="hero">
+      <div class="hero__brand">
+        <p class="hero__eyebrow">雪域战场 · 网页版</p>
+        <h1>雪豹杀</h1>
+        <p class="hero__subtitle">多人房间协作推进，角色与阵营公开</p>
+      </div>
+      <div class="hero__account">
+        {% if user %}
+        <div class="account-chip">
+          <img src="{{ avatar_url or (asset_path + '/assets/avatar_default.svg') }}" alt="avatar" />
+          <div>
+            <strong>{{ user_name }}</strong>
+            <span>已登录</span>
+          </div>
+        </div>
+        <form method="post" action="{{ auth_path }}/logout?next={{ room_path }}">
+          <button class="ghost" type="submit">退出</button>
+        </form>
+        <a class="ghost" href="{{ auth_path }}/account?next={{ room_path }}">账号设置</a>
+        {% else %}
+        <div class="account-cta">
+          <a class="primary" href="{{ auth_path }}/login?next={{ room_path }}">登录</a>
+          <a class="ghost" href="{{ auth_path }}/register?next={{ room_path }}">注册</a>
+        </div>
+        {% endif %}
+      </div>
+    </header>
+
+    <main class="layout">
+      <div class="layout__left">
+        <section class="panel panel--lobby">
+          <div class="panel__header">
+            <h2>房间控制</h2>
+            <p id="phaseLabel">正在连接...</p>
+          </div>
+          <div class="panel__body">
+            <div class="field">
+              <label>加入昵称（可选）</label>
+              <input id="joinName" type="text" placeholder="不填则使用账号名" maxlength="12" />
+            </div>
+            <div class="controls">
+              <button id="joinBtn" class="primary">加入房间</button>
+              <button id="leaveBtn" class="ghost">离开房间</button>
+            </div>
+            <div class="field">
+              <label>选择模式</label>
+              <select id="modeSelect"></select>
+            </div>
+            <div class="controls" id="hostControls">
+              <button id="startBtn" class="primary">开始游戏</button>
+              <button id="resetBtn" class="ghost">重置游戏</button>
+            </div>
+            <p class="hint" id="statusLine">等待玩家加入。</p>
+            <p class="hint">房间号：<strong>{{ room_id }}</strong> · 分享链接可邀请好友加入</p>
+          </div>
+        </section>
+
+        <section class="panel panel--game">
+          <div class="panel__header">
+            <h2>战场记录</h2>
+            <div class="log-toolbar">
+              <input id="logSearch" type="search" placeholder="搜索玩家或关键词" />
+              <button id="logFilterKey" class="ghost">关键</button>
+              <button id="logFilterAll" class="ghost">全部</button>
+              <button id="logFilterSpeech" class="ghost">发言</button>
+              <button id="logFilterSystem" class="ghost">系统</button>
+            </div>
+          </div>
+          <div class="panel__body">
+            <div id="currentState" class="current-state"></div>
+            <div class="log-section">
+              <h3>关键事件</h3>
+              <div id="keyTimeline" class="timeline"></div>
+            </div>
+            <div class="log-section">
+              <h3>完整日志</h3>
+              <div id="fullLog" class="full-log"></div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <aside class="panel panel--players">
+        <div class="panel__header">
+          <h2>玩家列表</h2>
+          <p>点击玩家头像选择目标</p>
+        </div>
+        <div class="panel__body">
+          <div class="player-ring-wrap">
+            <div id="playerRing" class="player-ring"></div>
+            <div id="playerDetail" class="player-detail hidden"></div>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <section class="panel action-panel">
+      <div class="panel__header">
+        <h2>行动面板</h2>
+        <p>根据身份选择行动</p>
+      </div>
+      <div class="panel__body">
+        <div class="action-meta">
+          <div id="roleLine" class="role-line">身份未分配</div>
+          <div id="actionHint" class="hint">暂无可用行动。</div>
+        </div>
+        <div id="actionButtons" class="action-buttons"></div>
+        <div class="notes" id="notesBox"></div>
+      </div>
+    </section>
+  </div>
+
+  <script src="{{ asset_path }}/assets/app.js" defer></script>
+</body>
+</html>

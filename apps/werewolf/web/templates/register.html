@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>注册 · 雪豹杀</title>
+  <link rel="stylesheet" href="{{ asset_path }}/assets/styles.css" />
+</head>
+<body>
+  <div class="page auth" data-auth-path="{{ auth_path }}">
+    <header class="hero hero--compact">
+      <div class="hero__brand">
+        <p class="hero__eyebrow">雪豹杀 · 账号中心</p>
+        <h1>注册</h1>
+        <p class="hero__subtitle">创建你的战场身份。</p>
+      </div>
+    </header>
+    <main class="panel panel--center">
+      <div class="form">
+        {% if error %}
+        <div class="alert">{{ error }}</div>
+        {% endif %}
+        <p class="hint">注册由 QQ 机器人完成：私聊机器人发送 QQ 号，获取密钥后完成确认。</p>
+        <p class="hint">完成后使用 QQ 号 + 密钥在网页登录。</p>
+        <p class="hint"><a href="{{ auth_path }}/login?next={{ next_path }}">去登录</a></p>
+        <p class="hint"><a href="{{ next_path }}">返回房间</a></p>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,1024 @@
+import hashlib
+import secrets
+import sqlite3
+import time
+import uuid
+from pathlib import Path
+from typing import Optional
+
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = Path("data") / "werewolf"
+DB_PATH = DATA_DIR / "users.db"
+AVATAR_DIR = DATA_DIR / "avatars"
+
+USERNAME_MIN = 2
+USERNAME_MAX = 12
+PASSWORD_MIN = 8
+PBKDF2_ITERS = 200_000
+
+
+def _connect() -> sqlite3.Connection:
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    return sqlite3.connect(DB_PATH)
+
+
+def init_db() -> None:
+    with _connect() as conn:
+        conn.execute( 
+            """
+            create table if not exists users (
+                id text primary key,
+                username text unique not null,
+                password_hash text not null,
+                salt text not null,
+                iterations integer not null,
+                avatar_filename text,
+                created_at integer not null
+            )
+            """
+        )
+
+
+def _hash_password(password: str, salt: str, iterations: int) -> str:
+    derived = hashlib.pbkdf2_hmac(
+        "sha256", password.encode("utf-8"), salt.encode("utf-8"), iterations
+    )
+    return derived.hex()
+
+
+def _validate_username(username: str) -> Optional[str]:
+    cleaned = username.strip()
+    if not cleaned:
+        return "empty_username"
+    if len(cleaned) < USERNAME_MIN or len(cleaned) > USERNAME_MAX:
+        return "username_length"
+    for ch in cleaned:
+        if ch.isalnum() or "\u4e00" <= ch <= "\u9fff" or ch in {"_", "-"}:
+            continue
+        return "username_chars"
+    return None
+
+
+def create_user(username: str, password: str) -> dict:
+    error = _validate_username(username)
+    if error:
+        raise ValueError(error)
+    if not password:
+        raise ValueError("empty_password")
+    if len(password) < PASSWORD_MIN:
+        raise ValueError("password_length")
+
+    salt = secrets.token_hex(8)
+    password_hash = _hash_password(password, salt, PBKDF2_ITERS)
+    user_id = uuid.uuid4().hex
+    created_at = int(time.time())
+
+    with _connect() as conn:
+        try:
+            conn.execute(
+                "insert into users (id, username, password_hash, salt, iterations, created_at) "
+                "values (?, ?, ?, ?, ?, ?)",
+                (user_id, username.strip(), password_hash, salt, PBKDF2_ITERS, created_at),
+            )
+        except sqlite3.IntegrityError:
+            raise ValueError("username_taken") from None
+
+    return {"id": user_id, "username": username.strip(), "avatar_filename": None}
+
+
+def authenticate(username: str, password: str) -> Optional[dict]:
+    cleaned = username.strip()
+    with _connect() as conn:
+        row = conn.execute(
+            "select id, username, password_hash, salt, iterations, avatar_filename "
+            "from users where username = ?",
+            (cleaned,),
+        ).fetchone()
+    if not row:
+        return None
+    user_id, name, password_hash, salt, iterations, avatar_filename = row
+    if _hash_password(password, salt, iterations) != password_hash:
+        return None
+    return {"id": user_id, "username": name, "avatar_filename": avatar_filename}
+
+
+def get_user_by_id(user_id: str) -> Optional[dict]:
+    with _connect() as conn:
+        row = conn.execute(
+            "select id, username, avatar_filename from users where id = ?",
+            (user_id,),
+        ).fetchone()
+    if not row:
+        return None
+    return {"id": row[0], "username": row[1], "avatar_filename": row[2]}
+
+
+def update_avatar(user_id: str, filename: str) -> None:
+    with _connect() as conn:
+        conn.execute("update users set avatar_filename = ? where id = ?", (filename, user_id))
+
+
+def avatar_url(base_path: str, avatar_filename: Optional[str]) -> Optional[str]:
+    if not avatar_filename:
+        return None
+    return f"{base_path}/avatars/{avatar_filename}"
+
+这是我的网页版狼人杀的数据库。
+我希望是这样的：
+只有我的QQ群机器人好友才能访问狼人杀。需要通过bot提供的一些fastapi接口获知相关信息。
+流程：
+用户输入自己的QQ号作为用户名-机器人检查此人是否是自己好友-机器人私聊此人发送密钥作为密码-此人回复确认-完成注册-用户登录。
+密钥必须由机器人随机生成，以确保用户个人隐私安全。
+除了要实现以上的功能，我应该如何最合理地兼容bot和狼人杀网页的数据存储与交互？
+已思考 16s
+
+你现在这份 users.db 设计是**“纯网页账号体系”：用户自己设用户名 + 密码哈希。
+但你希望的流程本质是“Bot 做身份提供方（Identity Provider / IdP）”**：只有 QQ 机器人好友才能拿到登录凭据，网页端只是消费这个身份。
+
+这两套模型要兼容，最合理的做法是：
+
+把“登录凭据的发放与验证权”完全收敛到 Bot 侧，
+网页侧只负责：生成登录会话 / 权限校验 / 游戏数据读写。
+
+下面我给你一个可落地、可演进、风险最小的方案。
+
+1) 你的目标到底是什么（抽象成 3 个硬约束）
+
+你描述的需求里，有 3 条是“系统边界”：
+
+只有机器人好友能访问网页狼人杀
+
+密码（密钥）必须由机器人随机生成，而不是用户自设
+
+网页端需要通过 Bot / FastAPI 获取“该用户是否可用、是谁、权限是什么”
+
+这意味着：
+
+“QQ号”不是传统意义的 username，而是外部身份（external identity）
+
+密钥不是长期密码，而是 Bot 发放的访问凭据（credential）
+
+Web 侧的“注册/登录”其实是一个 Bot 驱动的 Provisioning + Web Session Issuance 流程
+
+2) 你现有 users 表需要补的字段（否则会被流程打爆）
+
+你现在 users 表缺少 “这个账号对应哪个 QQ”、缺少 “Bot 是否确认过好友关系”、也缺少 “密钥生命周期（一次性/可轮换）”。
+
+建议你将 users 扩展成下面这样（最小增量版）：
+
+✅ users（扩展版，仍保持单表也能跑）
+字段	类型	用途
+id	text pk	内部用户 id
+username	text unique	可以继续存“展示名”，但不再是主身份
+qq_uin	text unique not null	QQ号（外部身份主键）
+password_hash/salt/iterations		仍可用，但语义变成“Bot 发放的 secret 的 hash”
+status	text not null	pending / active / disabled
+secret_issued_at	int	Bot 私聊发密钥的时间
+secret_confirmed_at	int	用户回复确认的时间
+last_login_at	int	可选
+created_at	int	已有
+
+关键点：qq_uin 必须 unique
+否则一个 QQ 能注册多个账号，好友门禁直接失效。
+
+3) 你要的注册流程，正确实现应该是“双阶段握手”
+
+你写的是：
+
+用户输入QQ号 → Bot检查好友 → Bot私聊发密钥 → 用户回复确认 → 完成注册 → 用户登录
+
+这不是普通注册，这是 Out-of-band credential provisioning（带外凭据发放）。
+
+推荐你按这个状态机实现：
+
+✅ 注册状态机（强可审计）
+
+pending：Bot 已经确认好友，并已经发过密钥，但用户未确认
+
+active：用户已确认，允许登录
+
+disabled：封禁/失效（也可用于“不是好友了”）
+
+流程（严格步骤）
+
+网页端输入 QQ 号
+
+网页端调用 POST /auth/request（Web → Server）
+
+Server 调用 Bot 或要求 Bot 调用 Server（见后面架构）进行：
+
+is_friend(qq_uin) 校验
+
+若是好友：生成 secret（随机）
+
+写入 users：
+
+qq_uin
+
+password_hash = hash(secret)
+
+status = pending
+
+secret_issued_at = now
+
+Bot 私聊该用户发送 secret
+
+用户在 QQ 私聊里回复“确认/OK”
+
+Bot 调用 POST /auth/confirm（Bot → Server）
+
+将该用户置为 active
+
+写入 secret_confirmed_at
+
+用户回到网页输入 QQ 号 + secret 登录
+
+4) 最关键的问题：Bot 和 Web 怎么“最合理兼容数据存储与交互”？
+
+你要避免两类灾难：
+
+灾难 A：Bot 与 Web 同时直连 SQLite 文件
+SQLite 在多进程并发写下会频繁锁库（尤其是 Windows/WSL 混用时更痛苦）。
+
+灾难 B：身份逻辑散落在两个系统
+一半在 Bot，一半在 Web，最后一定出现“好友判断不一致 / 状态不同步 / 漏洞”。
+
+所以你要一个明确的边界。
+
+方案结论（推荐路线）
+✅ 推荐：单一“权威后端”（FastAPI） + Bot 作为外部身份验证器
+
+users.db 只由 FastAPI 进程写
+
+Bot 不碰数据库，只做两件事：
+
+好友校验（is_friend）
+
+把 secret 安全私聊给用户 + 接收确认
+
+Bot 与 FastAPI 的交互通过 内部接口完成。
+
+为什么这是最合理的？
+
+数据一致性：只有一个地方写入 users（不会分叉）
+
+审计性：所有注册/确认/禁用都在一个服务里有日志
+
+未来可扩展：你把 SQLite 换 PostgreSQL 时无需动 Bot 的业务逻辑
+
+5) Bot ↔ FastAPI 的通信方式（你有两种稳妥实现）
+
+下面两种都能跑，我按“工程风险”排序：
+
+✅ 方案 1（最推荐）：Bot 调 FastAPI（Bot 是客户端）
+
+Bot 发 HTTP 请求到 Web 后端，告诉它“我确认好友/我确认用户回复了”。
+
+需要的接口（最小集）
+1) Bot 触发发密钥
+
+POST /internal/provision
+
+Body:
+
+qq_uin
+
+display_name（可选）
+
+request_id（幂等）
+
+signature（HMAC）
+
+Server 做：
+
+upsert user（pending）
+
+生成 secret
+
+返回 secret（只返回一次）
+
+Bot 做：
+
+私聊发 secret
+
+2) Bot 确认用户回复
+
+POST /internal/confirm
+
+Body:
+
+qq_uin
+
+request_id
+
+signature
+
+Server 做：
+
+status → active
+
+这套模式的核心是：
+FastAPI 是权威状态机，Bot 只是事件上报器。
+
+方案 2：FastAPI 调 Bot（Web 是客户端）
+
+你让 Bot 暴露一个 HTTP endpoint，然后 Web 去问 Bot “是不是好友”。
+
+这在公网部署时会变复杂（Bot 的网络可达性、防火墙、反向代理、鉴权），不推荐作为第一版。
+
+6) Web 登录别再用“长期密码”了，你要做“短会话令牌”
+
+你现在的 authenticate() 是典型的密码校验。
+
+但你这个 secret 是 Bot 发的，本质更像：
+
+初次登录凭据（bootstrap credential）
+
+甚至可以视为“一次性口令”或“可轮换密钥”
+
+因此你应该做两层：
+
+secret 验证通过
+
+服务端签发 session token（JWT 或随机 session_id）
+
+✅ 推荐实现（简单可靠）
+
+POST /auth/login：qq_uin + secret → 返回 session cookie（HttpOnly）
+
+后续所有网页请求只带 cookie，不再反复传 secret
+
+这样做的好处：
+
+secret 泄露风险大幅降低（不会频繁出现在网络请求里）
+
+你可以随时轮换 secret（踢下线/重置）
+
+7) 你必须补的安全边界（不补一定被打穿）
+
+你现在的需求在安全上最大的风险不是“哈希算法”，而是：
+
+风险 1：QQ号可枚举 → 变成好友探测器
+
+攻击者可以用网页接口不断试 QQ 号，观察返回信息判断某人是否是你机器人好友。
+
+✅ 修复策略：
+
+/auth/request 返回统一响应：永远显示“如果你是好友会收到私聊”
+
+实际结果只在 Bot 私聊里体现
+
+风险 2：密钥重放与长期有效
+
+如果 secret 永久有效，截图泄漏一次就是永久入侵。
+
+✅ 修复策略（至少做一条）：
+
+secret 设置过期：比如 24h 未确认就作废
+
+每次确认后强制轮换 secret
+
+支持用户主动重置 secret（只能通过 QQ 私聊触发）
+
+风险 3：Bot 内部接口被伪造调用
+
+如果 /internal/provision 没有强鉴权，任何人可直接创建账号并绕过好友检查。
+
+✅ 修复策略：
+
+Bot→Server 请求使用 HMAC 签名
+
+每个请求带 timestamp + nonce，服务端拒绝重放
+
+internal 接口限制来源 IP（如果部署环境允许）
+
+8) 数据存储怎么兼容“网页狼人杀”与“QQ群机器人玩法”？
+
+你问的是“最合理兼容 bot 和网页的数据存储与交互”。这句话背后其实是：
+
+你未来不仅网页要用 users.db，
+QQ 群里玩狼人杀也要用同一套用户、资产、装扮、战绩、段位……
+
+正确做法：拆成三类数据域（别混在 users）
+A. 身份域 Identity（强一致）
+
+users
+
+qq_uin 映射
+
+登录会话/权限
+
+特点：必须强一致、可审计、低频写
+
+B. 游戏域 Game（高频写）
+
+game_rooms
+
+game_players
+
+game_events（日志）
+
+match_history
+
+特点：写入频繁，强烈建议未来上 Postgres
+
+C. 素材/资产域 Asset（介于中间）
+
+avatars
+
+cosmetics（装扮）
+
+unlocks（解锁记录）
+
+特点：可能与付费、活动绑定，强审计需求
+
+9) 你当前代码应该怎么改（最小侵入改造点）
+
+你现有 create_user(username, password) 这种“用户自设密码”入口，在新体系里应该被替换为两个函数：
+
+✅ 1) provision_user_by_qq（只允许内部调用）
+
+输入：qq_uin, display_name
+
+行为：生成 secret → 写 DB pending → 返回 secret
+
+✅ 2) confirm_user_by_qq（只允许内部调用）
+
+输入：qq_uin
+
+行为：status=active
+
+✅ 3) authenticate_by_qq（网页登录）
+
+输入：qq_uin, secret
+
+行为：校验 hash + status=active → 签发 session
+
+你原来的 _hash_password 可以继续用（PBKDF2 也够用），只是语义从“password”变成“bot_secret”。
+
+10) 最小可行架构图（你照着做就不会走歪）
+[User Browser] --(qq_uin + secret)--> [FastAPI Server] --DB--> users.db
+       ^                                      ^
+       |                                      |
+       |                             (internal HMAC API)
+       |                                      |
+[QQ Bot Private Chat] <---(secret/confirm)--- [QQ Bot]
+
+
+FastAPI 是权威数据库写入者
+
+Bot 是外部身份验证通道（好友校验、密钥投递、确认回执）
+
+users.db 不被 Bot 直接写
+
+11) 你下一步应该做的实现顺序（避免“系统还没封口就开始加功能”）
+
+按这个顺序做，能最快封口：
+
+users 表加 qq_uin + status + issued/confirmed 时间
+
+FastAPI 增加 /internal/provision 和 /internal/confirm（HMAC 签名）
+
+Bot 实现：
+
+收到网页注册请求后触发 provision
+
+私聊发 secret
+
+收到确认消息后 confirm
+
+Web 实现 /auth/login（qq_uin + secret 换 session cookie）
+
+所有页面访问都要求 session（未登录跳转登录页）
+
+做到这里，你的“只有好友可访问”就真正闭环了。
+
+12) 你现在的设计里有一个隐性漏洞（我必须直说）
+
+你说“用户输入 QQ 号作为用户名”。
+
+这会导致你把 username 当作主键，但实际上你需要的是 qq_uin。
+
+用户名不应成为安全边界的一部分，原因：
+
+用户可以改昵称
+
+用户可能希望匿名（网页显示名≠QQ号）
+
+QQ号在网页出现是隐私暴露
+
+正确做法：
+
+登录输入：QQ号 + secret（仅用于身份验证）
+
+网页显示：display_name（可改）
+
+数据库主键关系：qq_uin → user_id
+
+如果你愿意，我可以直接给你一份**“users.db 的迁移 SQL + FastAPI internal API 签名方案 + Bot 侧调用伪代码”**，保持你现在的 PBKDF2 结构不推翻，只做最小增量封口。
+
+所以确实存在一个网页和bot都需要访问的数据库，还是网页拥有自己的数据库，bot不需要访问它？
+
+结论先给你：最合理的架构是“只有网页（FastAPI 后端）拥有并写数据库；Bot 不直接访问数据库”。
+数据库确实是“网页和 Bot 都需要用到的信息域”，但不应该做成“两个进程共享读写同一个 SQLite 文件”。
+
+下面把两种模式讲清楚，并明确为什么你应该选后者。
+
+1) 两种架构的本质区别
+A. 共享数据库（网页 + Bot 都直连 users.db）
+形式
+
+Bot 直接 sqlite3.connect(DB_PATH) 读写
+
+网页 FastAPI 也直接读写同一份 users.db
+
+你会得到的“好处”
+
+看起来简单：不用写 internal API
+
+你会付出的“代价”（致命）
+
+SQLite 锁冲突
+两个进程并发写（Bot + Web）会出现 database is locked，尤其是你后续加“游戏事件日志”这种高频写时一定爆。
+
+职责边界崩溃
+Bot 和 Web 都能改用户状态，迟早出现“状态不一致 / 漏洞绕过 / 难排查”。
+
+未来迁移困难
+你想换 Postgres 时，两套系统都要改，成本翻倍。
+
+共享 SQLite 文件这种方式，在你这个项目上属于“早期省事、后期必炸”。
+
+B. 单一权威数据库（FastAPI 独占 DB；Bot 只调用接口）
+形式
+
+FastAPI 是唯一写库者（权威状态机）
+
+Bot 不接触 users.db
+
+Bot 只做：
+
+QQ 好友校验
+
+私聊发密钥
+
+接收用户确认
+
+把结果“上报给 FastAPI”
+
+好处（工程上正确）
+
+一致性强：所有状态都在 FastAPI 内闭环
+
+不锁库：避免跨进程 SQLite 写冲突
+
+审计简单：所有事件都能落在一个地方（后续做日志系统很自然）
+
+扩展性好：将来换数据库，只改 FastAPI 的 DAL
+
+这是标准的 “Bot = 外部身份通道 / Web = 权威服务端” 模式。
+
+2) 你问的关键句：到底“有没有一个两边都要访问的数据库”？
+
+取决于你对“访问”的定义。
+
+如果你说的“访问”= 直接读写数据库文件
+
+✅ 推荐答案：不需要
+
+Bot 不应该直接读写数据库
+
+只有 Web/FastAPI 读写数据库
+
+如果你说的“访问”= 参与同一份用户数据的生命周期
+
+✅ 事实答案：需要
+
+Bot 参与用户身份生命周期，但通过 HTTP API 访问，而不是 SQLite 文件。
+
+也就是说：
+
+数据域是共享的，但数据存储的写入口必须单点化。
+
+3) 为什么你的场景必须“Web 独占 DB”？
+
+因为你未来一定会有这些写操作：
+
+写入游戏局数据
+
+写入事件日志（你刚好还缺日志系统）
+
+写入用户资产/装扮/战绩
+
+写入对局回放
+
+这些都是 高频写。
+如果你让 Bot 和 Web 都写 SQLite，你基本等于主动选择：
+
+锁库
+
+写入丢失
+
+排错地狱
+
+4) 正确的边界划分（最清晰的说法）
+Web/FastAPI 负责（权威）
+
+数据库：users / games / events / assets
+
+登录与会话签发（cookie/JWT）
+
+权限校验：是否允许进入网页
+
+Bot 负责（外部通道）
+
+判断是否好友（外部世界事实）
+
+私聊发送密钥（带外凭据投递）
+
+收到确认消息（带外确认）
+
+Bot 与 Web 的交互方式
+
+Bot 调用 Web 的 /internal/* 接口
+
+Web 不去碰 Bot 的内存状态
+
+5) 你可以把它理解成一句话
+
+数据库属于“服务端（FastAPI）”，Bot 只是一个“认证设备/输入设备”。
+
+6) 最小接口清单（不废话，够你跑通）
+
+Bot → FastAPI（必须有鉴权）
+
+POST /internal/provision
+
+输入：qq_uin
+
+作用：FastAPI 生成 secret、写入 pending、返回 secret
+
+Bot 拿到 secret 私聊用户
+
+POST /internal/confirm
+
+输入：qq_uin
+
+作用：写入 active
+
+Browser → FastAPI
+
+POST /auth/login
+
+输入：qq_uin + secret
+
+作用：验证通过 → 发 session cookie
+
+7) 你可能会误以为“Bot 不写 DB 就等于没法做事”——这是错的
+
+Bot 最适合做的是事件源，不是状态机。
+
+Bot 产生事件：好友校验结果 / 用户确认
+
+FastAPI 维护状态：用户是否 active / 密钥是否过期 / 会话是否有效
+
+这也是你未来做“日志系统”的正确起点：
+事件归一，状态可重放，可审计。
+
+8) 直接给你选型建议（硬结论）
+
+✅ 选：Web 独占 DB，Bot 不直连 SQLite
+❌ 不要：Bot 与 Web 共享读写 users.db
+
+因为你这个项目的后续一定会走向：
+
+多局游戏并发
+
+大量事件日志
+
+资产系统
+
+付费系统
+
+共享 SQLite 会变成结构性阻塞。
+
+如果你下一步要落地，我建议你先做一个最小闭环：
+
+users 表加 qq_uin + status
+
+写 /internal/provision + /internal/confirm（HMAC 签名）
+
+Bot 私聊发 secret + 收确认
+
+Web login 发 session cookie
+
+你跑通后，再开始做“游戏日志系统”，否则一定会在中途返工。
+
+你的意思是这个表让fastapi维护和读写，只允许bot读，还是bot不允许读而是通过网页请求获取信息？
+
+我的意思是：这张表由 FastAPI 维护并独占读写；Bot 不允许直接读 DB 文件，甚至不允许“以 sqlite 方式读”。
+Bot 如果需要知道用户状态、密钥状态等信息，也应该通过请求 FastAPI 获取。
+
+换句话说：
+
+Bot ≠ DB 客户端
+Bot = FastAPI 的“外部事件输入端 + 受控查询端”
+
+1) 权限边界（你要的“最合理”就是这条）
+✅ FastAPI：唯一的数据库访问者（读 + 写）
+
+users.db 只被 FastAPI 进程打开
+
+所有 insert/update/select 都在 FastAPI 内完成
+
+✅ Bot：不直连 DB（既不写，也不读）
+
+Bot 不应该 sqlite3.connect(DB_PATH)
+
+Bot 与 DB 的一切交互都走 HTTP API（internal endpoints）
+
+原因很现实：
+
+锁库 / 并发写冲突风险（哪怕你说“Bot只读”，也会引入连接与进程复杂度）
+
+权限边界更清晰：谁决定状态？谁签发登录？谁有最终真相？
+
+最终真相必须只有一个：FastAPI。
+
+2) 那 Bot 到底要不要“读表”？
+
+Bot 通常不需要读表，它只需要做两类事情：
+
+产生事实：
+
+这个 QQ 是不是好友？
+
+用户有没有回复“确认”？
+
+投递密钥：私聊发送 secret
+
+这两件事都不需要读 DB。
+
+但在某些情况下 Bot 确实可能要“查询状态”，比如：
+
+用户在 QQ 里问：“我注册了吗？密钥过期了吗？”
+
+管理员在群里问：“这个人被封了吗？”
+
+这种情况下也不是让 Bot 读 sqlite，而是：
+
+Bot 调用 FastAPI 的 “internal query API” 去查状态
+
+3) 你应该实现的接口形态（最小且正确）
+Bot → FastAPI（内部接口，必须鉴权）
+1) 写：发密钥（provision）
+
+POST /internal/provision
+
+输入：qq_uin
+
+FastAPI：
+
+校验/更新用户状态 pending
+
+生成 secret（或生成并返回一次性 secret）
+
+写库
+
+返回 secret 给 Bot
+
+Bot：私聊把 secret 发出去
+
+2) 写：确认注册（confirm）
+
+POST /internal/confirm
+
+输入：qq_uin
+
+FastAPI：写库 active
+
+3) 读：查状态（可选）
+
+GET /internal/user_status?qq_uin=...
+
+FastAPI：从 DB 查询
+
+Bot：拿结果回复用户
+
+4) 为什么我反对“FastAPI写，Bot直读”？
+
+你提的方案是：
+
+FastAPI 维护读写，只允许 Bot 读
+
+这看起来“妥协”，但长期仍然是坏边界，主要问题有三个：
+
+问题 A：你还是在搞“两个进程共享 sqlite 文件”
+
+即使 Bot 只读，也会带来：
+
+文件锁争用（尤其 Windows/部署环境复杂时）
+
+连接生命周期复杂化
+
+你以后想换数据库，Bot 又要改一遍
+
+问题 B：你会无意识地让 Bot 开始“读了就顺手写”
+
+现实开发中，Bot 读着读着就会出现需求：
+
+“那我顺便把 last_seen 写一下”
+
+“那我顺便标记已读”
+最后一定演化成双写主体，架构边界崩塌。
+
+问题 C：权限审计困难
+
+如果 DB 入口不收敛到 FastAPI，你无法保证：
+
+什么时候写的
+
+谁写的
+
+为什么写的
+
+是否幂等
+
+你后面想做日志系统时会非常痛苦。
+
+5) 你该怎么记这条原则（方便你以后决策）
+
+FastAPI = 状态机（State Machine）
+Bot = 事件源（Event Source）
+
+状态机：负责持久化状态、校验状态、拒绝非法状态跃迁
+
+事件源：负责告诉状态机“外部世界发生了什么”
+
+这会让你的系统：
+
+可审计
+
+可回放
+
+不分叉
+
+不锁库
+
+6) 最小结论（一句话）
+
+Bot 不读 sqlite；Bot 通过请求 FastAPI 获取信息。
+FastAPI 独占 DB 的读写权，是你这个项目最稳的封口方式。
+
+如果你愿意，我可以继续把 internal API 的鉴权方案（HMAC + timestamp + nonce 防重放）按你现有项目结构给出一份“可直接抄”的实现骨架。
+
+可是用户有可能在群里查询自己的狼人杀段位，bot不允许读，那他怎么知道呢？
+
+Bot 当然可以“知道”段位，只是不通过直读数据库文件来知道，而是通过调用 FastAPI 的查询接口来知道。
+
+你要把“读数据”从“读 DB 文件”升级为“读权威服务”。
+
+1) Bot 查询段位的正确链路
+
+当用户在群里发：
+
+/段位
+
+正确数据流是：
+
+群消息 → Bot 解析命令 → 调 FastAPI（internal API）→ FastAPI 查 DB → 返回段位 → Bot 回复群里
+
+
+也就是：
+
+Bot 是 UI/入口
+
+FastAPI 是权威查询服务
+
+DB 仍然只由 FastAPI 接触
+
+2) 你需要的最小接口（读接口）
+
+比如：
+
+✅ 段位查询
+
+GET /internal/rank?qq_uin=123456
+
+返回：
+
+{
+  "qq_uin": "123456",
+  "rank": "黄金 II",
+  "mmr": 1420,
+  "wins": 32,
+  "losses": 18
+}
+
+
+Bot 侧拿到结果直接输出：
+
+你的段位：黄金 II（MMR 1420，32W-18L）
+
+3) 为什么我坚持“Bot 不直读 DB”，即使只是查段位？
+
+因为你说的“段位查询”只是开始，后面一定会出现：
+
+查询战绩
+
+查询资产/装扮
+
+查询对局回放
+
+查询当前房间状态
+
+查询排行榜
+
+这会让 Bot 逐步变成第二个后端，一旦它直连 DB，就会发生三类结构性事故：
+
+A. 数据入口分叉（读着读着就开始写）
+
+今天读段位，明天就想“顺便写 last_seen / 顺便加积分”，两周后你就有两个写入源。
+
+B. SQLite 并发访问风险（别幻想只读永远只读）
+
+就算 Bot 只读，FastAPI 高写频下也会碰锁、性能抖动、难排错。
+
+C. 未来迁移成本翻倍
+
+你从 SQLite 升级到 Postgres 时：
+
+如果 Bot 直连 DB，你要改两套
+
+如果 Bot 只调 API，你只改 FastAPI，一步到位
+
+4) “Bot 通过 API 查询”会不会慢？会不会不稳定？
+
+这是合理担忧，但解决方式非常标准：
+
+✅ 解决方案：Bot 本地缓存 + FastAPI 兜底
+缓存策略（推荐）
+
+段位这种数据不需要强实时
+
+Bot 缓存 30 秒～2 分钟都完全可接受
+
+例如：
+
+同一个 QQ 在 60 秒内查询段位 → Bot 直接返回缓存，不打 FastAPI
+
+这样你能把群里刷命令的压力压下去。
+
+5) FastAPI 给 Bot 的查询接口要不要鉴权？
+
+必须要。
+
+因为这是 internal API，不允许任何人仿造 Bot 调用。
+
+你至少需要：
+
+X-Bot-Id
+
+X-Timestamp
+
+X-Nonce
+
+X-Signature = HMAC(secret, method + path + body + timestamp + nonce)
+
+FastAPI 验证：
+
+timestamp 不过期（比如 30 秒）
+
+nonce 未使用过（防重放）
+
+signature 正确
+
+6) 你真正应该做的“兼容设计”
+
+你现在问的是段位查询，但本质上你在做的是：
+
+同一份“狼人杀用户数据域”要同时服务 Web 和 QQ Bot 两个前端
+
+正确兼容方式就是：
+
+✅ 单后端，多前端
+
+后端：FastAPI（权威）
+
+前端 A：网页
+
+前端 B：Bot
+
+它们共享的不是数据库文件，而是 共享同一套服务 API 和同一套数据模型。
+
+7) 最终裁决
+
+Bot 可以查询段位
+
+但 Bot 不应该直读 DB
+
+Bot 查询段位的方式是：调用 FastAPI 查询接口
+
+这是你这个项目长期不会炸的架构。
+
+如果你愿意，我可以直接给你一组接口清单（rank / profile / match_history / cosmetics）以及它们的权限分级（群可查哪些、私聊可查哪些、网页登录可查哪些），把“数据面”一次性封口，避免你后面边做边补导致接口碎片化。

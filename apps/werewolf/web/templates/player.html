@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>玩家视角 · 雪豹杀</title>
+  <link rel="stylesheet" href="{{ asset_path }}/assets/styles.css" />
+</head>
+<body>
+  <div class="page"
+       data-room-path="{{ room_path }}"
+       data-asset-path="{{ asset_path }}"
+       data-auth-path="{{ auth_path }}"
+       data-room-id="{{ room_id }}"
+       data-logged-in="{{ 'true' if user else 'false' }}">
+    <header class="hero hero--compact">
+      <div class="hero__brand">
+        <p class="hero__eyebrow">雪豹杀 · 玩家席位</p>
+        <h1>玩家视角</h1>
+        <p class="hero__subtitle">你可以在这里直接行动。</p>
+      </div>
+      <div class="hero__account">
+        <a class="ghost" href="{{ room_path }}">返回主房间</a>
+      </div>
+    </header>
+
+    <main class="grid">
+      <section class="panel">
+        <div class="panel__header">
+          <h2>行动面板</h2>
+          <p id="phaseLabel">正在连接...</p>
+        </div>
+        <div class="panel__body">
+          <div id="actionHint" class="hint">暂无可用行动。</div>
+          <div id="actionForm" class="action-form">
+            <select id="actionSelect"></select>
+            <select id="targetSelect" class="hidden"></select>
+            <select id="targetSelect2" class="hidden"></select>
+            <button id="actionBtn" class="primary">提交行动</button>
+          </div>
+          <div class="notes" id="notesBox"></div>
+        </div>
+      </section>
+
+      <section class="panel panel--wide">
+        <div class="panel__header">
+          <h2>玩家列表</h2>
+          <p>角色公开，阵营公开</p>
+        </div>
+        <div class="panel__body">
+          <div id="playerGrid" class="player-grid"></div>
+        </div>
+      </section>
+
+      <section class="panel panel--wide">
+        <div class="panel__header">
+          <h2>战场记录</h2>
+          <p>阶段推进与关键行动</p>
+        </div>
+        <div class="panel__body">
+          <div id="logList" class="log-list"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="{{ asset_path }}/assets/app.js" defer></script>
+</body>
+</html>

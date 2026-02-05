@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>账号设置 · 雪豹杀</title>
+  <link rel="stylesheet" href="{{ asset_path }}/assets/styles.css" />
+</head>
+<body>
+  <div class="page auth" data-auth-path="{{ auth_path }}">
+    <header class="hero hero--compact">
+      <div class="hero__brand">
+        <p class="hero__eyebrow">雪豹杀 · 账号中心</p>
+        <h1>账号设置</h1>
+        <p class="hero__subtitle">上传你的头像，展示战场标识。</p>
+      </div>
+    </header>
+    <main class="panel panel--center">
+      {% if error %}
+      <div class="alert">{{ error }}</div>
+      {% endif %}
+      <div class="profile">
+        <img src="{{ avatar_url or (asset_path + '/assets/avatar_default.svg') }}" alt="avatar" />
+        <div>
+          <strong>{{ user_name }}</strong>
+          <p class="hint">QQ号：{{ user_qq }}</p>
+          <p class="hint">头像支持 png/jpg/gif，最大 2MB。</p>
+        </div>
+      </div>
+      <form method="post" action="{{ auth_path }}/account/name?next={{ next_path }}" class="form">
+        <label>展示名</label>
+        <input name="display_name" type="text" value="{{ user_name }}" required />
+        <button class="primary" type="submit">更新展示名</button>
+      </form>
+      <form method="post" action="{{ auth_path }}/account/avatar?next={{ next_path }}" enctype="multipart/form-data" class="form">
+        <label>上传新头像</label>
+        <input name="avatar" type="file" accept="image/*" required />
+        <button class="primary" type="submit">保存头像</button>
+      </form>
+      <p class="hint"><a href="{{ next_path }}">返回房间</a></p>
+    </main>
+  </div>
+</body>
+</html>

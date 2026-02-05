@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>登录 · 雪豹杀</title>
+  <link rel="stylesheet" href="{{ asset_path }}/assets/styles.css" />
+</head>
+<body>
+  <div class="page auth" data-auth-path="{{ auth_path }}">
+    <header class="hero hero--compact">
+      <div class="hero__brand">
+        <p class="hero__eyebrow">雪豹杀 · 账号中心</p>
+        <h1>登录</h1>
+        <p class="hero__subtitle">进入雪域战场，加载你的身份。</p>
+      </div>
+    </header>
+    <main class="panel panel--center">
+      <form method="post" action="{{ auth_path }}/login" class="form">
+        <input type="hidden" name="next" value="{{ next_path }}" />
+        {% if error %}
+        <div class="alert">{{ error }}</div>
+        {% endif %}
+        <label>QQ号</label>
+        <input name="qq_uin" type="text" inputmode="numeric" pattern="[0-9]*" required />
+        <label>密钥</label>
+        <input name="secret" type="password" required />
+        <button class="primary" type="submit">登录</button>
+        <p class="hint">没有密钥？<a href="{{ auth_path }}/register?next={{ next_path }}">去注册</a></p>
+        <p class="hint"><a href="{{ next_path }}">返回房间</a></p>
+      </form>
+    </main>
+  </div>
+</body>
+</html>

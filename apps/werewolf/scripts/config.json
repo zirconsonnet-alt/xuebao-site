@@ -1,0 +1,12 @@
+  {
+    "base_url": "http://127.0.0.1:8000",
+    "host": "0.0.0.0",
+    "port": 8000,
+    "headless": false,
+    "keep_open": true,
+    "accounts": [
+      { "qq_uin": "10001", "secret": "replace-with-secret", "display_name": "A" },
+      { "qq_uin": "10002", "secret": "replace-with-secret", "display_name": "B" },
+      { "qq_uin": "10003", "secret": "replace-with-secret", "display_name": "C" }
+    ]
+  }
